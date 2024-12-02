@@ -730,12 +730,12 @@ CLASS lcl_main IMPLEMENTATION.
     CALL METHOD lo_mime_helper->set_main_html
       EXPORTING
         content     = lt_soli
-        description = 'Test Email'.
+        description = 'Email'.
 
     " Set the subject of the mail.
     TRY.
         lo_doc_bcs = cl_document_bcs=>create_from_multirelated(
-                      i_subject          = 'Subject of our email'
+                      i_subject          = 'Abertura de Chamado'
                       i_importance       = '9'                " 1~High Priority  5~Average priority 9~Low priority
                       i_multirel_service = lo_mime_helper ).
       CATCH cx_document_bcs.
