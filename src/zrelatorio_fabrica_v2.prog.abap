@@ -93,6 +93,19 @@ TYPES: BEGIN OF ty_alv_dms,
 DATA:
       lt_detail_tab TYPE ty_detail_tab OCCURS 29.
 
+*Variáveis para envio de e-mail
+    DATA:
+      lo_mime_helper TYPE REF TO cl_gbt_multirelated_service,
+      lo_bcs         TYPE REF TO cl_bcs,
+      lo_doc_bcs     TYPE REF TO cl_document_bcs,
+      lo_recipient   TYPE REF TO if_recipient_bcs,
+      lt_soli        TYPE TABLE OF soli,
+      ls_soli        TYPE soli,
+      lv_status      TYPE bcs_rqst,
+      string         TYPE string,
+      string2        TYPE string,
+      string3        TYPE string.
+
 *Variável para guardar quantidade de linhas da tabela
 DATA:
   log_linha TYPE i.
@@ -1260,6 +1273,9 @@ MODULE user_command_1001 INPUT.
             ENDIF.
 
             INSERT zbv_log_atuali FROM gs_zbv_log_atuali.
+            "Inserção e-mail
+            PERFORM envia_email.
+
 *          APPEND gs_zbv_log_atuali TO gt_zbv_log_atuali.
             log_linha += 1.
 
@@ -1411,6 +1427,11 @@ FORM f_build_fieldcat USING VALUE(p_fieldname) TYPE c
   ls_fieldcat-edit      = p_edit.
   ls_fieldcat-just      = 'C'.
   ls_fieldcat-outputlen = p_outputlen.
+
+*  IF ls_fieldcat-ref_field = 'COMENTARIO'.
+*    CLEAR: ls_fieldcat-just.
+*  ENDIF.
+
   APPEND ls_fieldcat TO t_fieldcat[].
 
 ENDFORM.
@@ -1486,6 +1507,8 @@ MODULE user_command_1002 INPUT.
 
             INSERT zbv_log_atuali FROM gs_zbv_log_atuali.
 
+            PERFORM envia_email.
+
             IF sy-subrc = 0.
               COMMIT WORK.
               PERFORM f_obtem_dados_comentarios.
@@ -1558,6 +1581,8 @@ MODULE user_command_1002 INPUT.
                 CHECK sy-subrc = 0.
 
                 INSERT zbv_log_atuali FROM gs_zbv_log_atuali.
+
+                PERFORM envia_email.
 
                 COMMIT WORK.
                 MESSAGE TEXT-007 TYPE 'I' DISPLAY LIKE 'S'. "Comentário removido com sucesso!
@@ -1812,6 +1837,8 @@ FORM f_salvar_alteracoes .
     CHECK sy-subrc = 0.
 
     INSERT zbv_log_atuali FROM gs_zbv_log_atuali.
+
+    PERFORM envia_email.
 
     IF sy-subrc = 0.
       COMMIT WORK.
@@ -2498,6 +2525,8 @@ MODULE user_command_1005 INPUT.
 
             INSERT zbv_log_atuali FROM gs_zbv_log_atuali.
 
+            PERFORM envia_email.
+
             log_linha += 1.
 
             CLEAR: gs_zbv_log_atuali-depois.
@@ -2658,6 +2687,8 @@ MODULE user_command_1005 INPUT.
 
                     INSERT zbv_log_atuali FROM gs_zbv_log_atuali.
 
+                    PERFORM envia_email.
+
                     log_linha += 1.
 
                     CLEAR: gs_zbv_log_atuali-antes.
@@ -2682,7 +2713,7 @@ MODULE user_command_1005 INPUT.
                 ENDIF. "gs_return-type CA 'WEA'
 
               ELSE.
-                MESSAGE 'Somente quem criou o comentário pode eliminá-lo!' TYPE 'W'.
+                MESSAGE 'Somente o usuário responsável pode eliminá-lo!' TYPE 'W'.
               ENDIF. "sem_auth = abap_true.
 
             ENDIF. "sy-subrc NE 0
@@ -2919,6 +2950,8 @@ MODULE user_command_1007 INPUT.
 
               INSERT zbv_log_atuali FROM gs_zbv_log_atuali.
 
+              PERFORM envia_email.
+
               COMMIT WORK.
               PERFORM f_obtem_dados_horas.
               MESSAGE TEXT-004 TYPE 'I' DISPLAY LIKE 'S'. "Linha adicionada com sucesso
@@ -3007,6 +3040,8 @@ MODULE user_command_1007 INPUT.
 
                   INSERT zbv_log_atuali FROM gs_zbv_log_atuali.
 
+                  PERFORM envia_email.
+
                   COMMIT WORK.
                   MESSAGE TEXT-025 TYPE 'I' DISPLAY LIKE 'S'. "Horas removidas com sucesso!
 
@@ -3018,7 +3053,7 @@ MODULE user_command_1007 INPUT.
                 ENDIF.
 
               ELSE.
-                MESSAGE 'Somente quem criou o comentário pode eliminá-lo!' TYPE 'W'.
+                MESSAGE 'Somente o usuário responsável pode eliminá-lo!' TYPE 'W'.
               ENDIF. "gs_zbv_horas-criado_por = sy-uname.
 
             WHEN OTHERS.
@@ -3110,6 +3145,8 @@ FORM f_salvar_alteracoes_horas .
     IF sy-subrc = 0.
 
       INSERT zbv_log_atuali FROM gs_zbv_log_atuali.
+
+      PERFORM envia_email.
 
       COMMIT WORK.
       lv_salvou_item = 'X'.
@@ -3917,4 +3954,80 @@ FORM encerra_contagem_em_aberto .
 
   ENDIF. "sy-subrc <> 0. Validação da função L_MC_TIME_DIFFERENCE
 
+ENDFORM.
+
+FORM envia_email.
+
+    " Create the main object of the mail.
+    CREATE OBJECT lo_mime_helper.
+
+      " Create the mail content.-----"NEW WAY"
+      string = '<!DOCTYPE html PUBLIC “-//IETF//DTD HTML 5.0//EN">'
+      && '<HTML><BODY>'.
+
+      string2 = '<P>O chamado'.
+
+      string3 = 'foi atualizado!</P></BODY></HTML>'.
+
+    CONCATENATE string string2 INTO DATA(string_parcial).
+
+    CONCATENATE string_parcial gs_zbv_chamados-id_chamado string3 INTO DATA(string_final) SEPARATED BY space.
+
+    lt_soli = cl_document_bcs=>string_to_soli( string_final ).
+
+    CALL METHOD lo_mime_helper->set_main_html
+      EXPORTING
+        content     = lt_soli
+        description = 'Email'.
+
+    " Set the subject of the mail.
+    TRY.
+        lo_doc_bcs = cl_document_bcs=>create_from_multirelated(
+                      i_subject          = 'Chamado atualizado'
+                      i_importance       = '9'                " 1~High Priority  5~Average priority 9~Low priority
+                      i_multirel_service = lo_mime_helper ).
+      CATCH cx_document_bcs.
+
+    ENDTRY.
+
+
+    TRY.
+        lo_bcs = cl_bcs=>create_persistent( ).
+
+        lo_bcs->set_document( i_document = lo_doc_bcs ).
+
+        TRY.
+            lo_recipient = cl_cam_address_bcs=>create_internet_address(
+            i_address_string =  'berenger.bruno@gmail.com' ).
+          CATCH cx_address_bcs.
+
+        ENDTRY.
+
+        lo_bcs->add_recipient( i_recipient = lo_recipient ).
+
+        TRY.
+            lo_recipient = cl_cam_address_bcs=>create_internet_address(
+            i_address_string =  'bruno.bereger@t-systems.com' ).
+          CATCH cx_address_bcs.
+
+        ENDTRY.
+
+        lo_bcs->add_recipient( i_recipient = lo_recipient ).
+
+        " Change the status.
+        lv_status = 'N'.
+
+        CALL METHOD lo_bcs->set_status_attributes
+          EXPORTING
+            i_requested_status = lv_status.
+      CATCH cx_send_req_bcs.
+        MESSAGE 'Erro no método set_status_attributes!' TYPE 'I' DISPLAY LIKE 'E'.
+    ENDTRY.
+
+    TRY.
+        lo_bcs->send( ).
+        COMMIT WORK.
+      CATCH cx_bcs INTO DATA(lx_bcs).
+        ROLLBACK WORK.
+    ENDTRY.
 ENDFORM.
