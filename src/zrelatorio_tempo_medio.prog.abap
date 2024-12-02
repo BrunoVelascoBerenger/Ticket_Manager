@@ -23,6 +23,7 @@ TYPES:
     hora_encerramento TYPE zbv_chamados-hora_encerramento,
     tempo_abrt        TYPE zbv_tmp_em_abrt-tempo,
     tempo_atnd        TYPE zbv_tmp_em_atnd-tempo,
+    tempo_dev         TYPE zbv_tmp_dev-tempo,
     tempo_parado      TYPE zbv_tmp_parado-tempo,
     tempo_tst_func    TYPE zbv_tmp_tst_func-tempo,
     tempo_tst_clnt    TYPE zbv_tmp_tst_clnt-tempo,
@@ -39,6 +40,7 @@ DATA: wa_zbv_chamados TYPE zbv_chamados.
 DATA: gt_zbv_chamados     TYPE TABLE OF ty_tempo_medio,
       gt_zbv_tmp_em_abrt  TYPE TABLE OF zbv_tmp_em_abrt,
       gt_zbv_tmp_em_atnd  TYPE TABLE OF zbv_tmp_em_atnd,
+      gt_zbv_tmp_dev      TYPE TABLE of zbv_tmp_dev,
       gt_zbv_tmp_parado   TYPE TABLE OF zbv_tmp_parado,
       gt_zbv_tmp_tst_func TYPE TABLE OF zbv_tmp_tst_func,
       gt_zbv_tmp_tst_clnt TYPE TABLE OF zbv_tmp_tst_clnt.
@@ -79,7 +81,7 @@ SELECTION-SCREEN END OF BLOCK b1.
 
 SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE TEXT-003. "Selecione a fase que deseja visualizar
 
-  PARAMETERS: p_fase AS LISTBOX VISIBLE LENGTH 15.
+  PARAMETERS: p_fase AS LISTBOX VISIBLE LENGTH 20.
 
 SELECTION-SCREEN END OF BLOCK b2.
 
@@ -100,10 +102,11 @@ AT SELECTION-SCREEN OUTPUT.
 
   PERFORM: listbox USING '1' 'Em Aberto',
            listbox USING '2' 'Em Atendimento',
-           listbox USING '3' 'Parado',
-           listbox USING '4' 'Teste Funcional',
-           listbox USING '5' 'Teste Cliente',
-           listbox USING '6' 'Todas'.
+           listbox USING '3' 'Em Desenvolvimento',
+           listbox USING '4' 'Parado',
+           listbox USING '5' 'Teste Funcional',
+           listbox USING '6' 'Teste Cliente',
+           listbox USING '7' 'Todas'.
 
   CALL FUNCTION 'VRM_SET_VALUES'
     EXPORTING
@@ -169,7 +172,7 @@ FORM get_data.
       AND   tecnologia        IN so_tecno
       AND   complexidade      IN so_compl
       AND   prioridade        IN so_prior
-  AND   status            EQ encerrado.
+      AND   status            EQ encerrado.
 *      AND   data_abertura     IN so_dt_ab
 *      AND   data_encerramento IN so_dt_en.
 
@@ -177,31 +180,37 @@ FORM get_data.
       INTO CORRESPONDING FIELDS OF TABLE gt_zbv_tmp_em_abrt
       WHERE tipo_chamado      IN so_tp_ch
       AND   id_chamado        IN so_id_ch
-  AND   cliente           IN so_clnt.
+      AND   cliente           IN so_clnt.
 
   SELECT * FROM zbv_tmp_em_atnd
       INTO CORRESPONDING FIELDS OF TABLE gt_zbv_tmp_em_atnd
       WHERE tipo_chamado      IN so_tp_ch
       AND   id_chamado        IN so_id_ch
-  AND   cliente           IN so_clnt.
+ 	  AND   cliente           IN so_clnt.
+
+  SELECT * from zbv_tmp_dev
+    INTO CORRESPONDING FIELDS OF TABLE gt_zbv_tmp_dev
+    WHERE tipo_chamado      IN so_tp_ch
+    AND   id_chamado        IN so_id_ch
+    AND   cliente           IN so_clnt.
 
   SELECT * FROM zbv_tmp_parado
       INTO CORRESPONDING FIELDS OF TABLE gt_zbv_tmp_parado
       WHERE tipo_chamado      IN so_tp_ch
       AND   id_chamado        IN so_id_ch
-  AND   cliente           IN so_clnt.
+      AND   cliente           IN so_clnt.
 
   SELECT * FROM zbv_tmp_tst_func
       INTO CORRESPONDING FIELDS OF TABLE gt_zbv_tmp_tst_func
       WHERE tipo_chamado      IN so_tp_ch
       AND   id_chamado        IN so_id_ch
-  AND   cliente           IN so_clnt.
+      AND   cliente           IN so_clnt.
 
   SELECT * FROM zbv_tmp_tst_clnt
       INTO CORRESPONDING FIELDS OF TABLE gt_zbv_tmp_tst_clnt
       WHERE tipo_chamado      IN so_tp_ch
       AND   id_chamado        IN so_id_ch
-  AND   cliente           IN so_clnt.
+      AND   cliente           IN so_clnt.
 
 
 
@@ -299,6 +308,54 @@ FORM get_data.
       ENDIF.
 
     ENDLOOP.
+
+
+    "Tempo Em Desenvolvimento
+    LOOP AT gt_zbv_tmp_dev ASSIGNING FIELD-SYMBOL(<fs_zbv_tmp_dev>).
+
+      IF        <fs_zbv_chamados>-tipo_chamado = <fs_zbv_tmp_dev>-tipo_chamado
+         AND    <fs_zbv_chamados>-id_chamado   = <fs_zbv_tmp_dev>-id_chamado
+         AND    <fs_zbv_chamados>-cliente      = <fs_zbv_tmp_dev>-cliente
+         AND    <fs_zbv_chamados>-acao         = <fs_zbv_tmp_dev>-acao.
+
+        <fs_zbv_chamados>-tempo_dev += <fs_zbv_tmp_dev>-tempo.
+
+        "Verificando se a diferença entre o fim e o inicio do tempo é mais de 1 dia
+        CALL FUNCTION 'L_MC_TIME_DIFFERENCE'
+          EXPORTING
+            date_from  = <fs_zbv_tmp_dev>-data_ini
+            date_to    = <fs_zbv_tmp_dev>-data_fim
+            time_from  = <fs_zbv_tmp_dev>-hora_ini
+            time_to    = <fs_zbv_tmp_dev>-hora_fim
+          IMPORTING
+            delta_time = tempo_minutos
+*           DELTA_UNIT =
+*           EXCEPTIONS
+*           FROM_GREATER_TO       = 1
+*           OTHERS     = 2
+          .
+        IF sy-subrc <> 0.
+          MESSAGE 'Erro ao pegar a diferença de tempo!' TYPE 'I' DISPLAY LIKE 'E'.
+        ELSE.
+          diferenca_horas = tempo_minutos / 60.
+
+        ENDIF.
+
+        IF diferenca_horas >= 24.
+          valor_dias = diferenca_horas / 24.
+          valor_reduzir = 16 * valor_dias.
+          <fs_zbv_chamados>-tempo_dev -= valor_reduzir.
+
+          CLEAR: diferenca_horas,
+          valor_dias,
+          valor_reduzir.
+
+        ENDIF.
+
+      ENDIF.
+
+    ENDLOOP.
+
 
     "Tempo Parado
     LOOP AT gt_zbv_tmp_parado ASSIGNING FIELD-SYMBOL(<fs_zbv_tmp_parado>).
@@ -445,6 +502,7 @@ FORM get_data.
   LOOP AT gt_zbv_chamados ASSIGNING FIELD-SYMBOL(<fs_gt_zbv_chamados>).
     <fs_gt_zbv_chamados>-tempo_total = <fs_gt_zbv_chamados>-tempo_abrt +
                                        <fs_gt_zbv_chamados>-tempo_atnd +
+                                       <fs_gt_zbv_chamados>-tempo_dev +
                                        <fs_gt_zbv_chamados>-tempo_parado +
                                        <fs_gt_zbv_chamados>-tempo_tst_func +
                                        <fs_gt_zbv_chamados>-tempo_tst_clnt.
@@ -558,6 +616,9 @@ FORM exclude_column.
           gr_column ?= gr_columns->get_column( 'TEMPO_ATND' ).
           gr_column->set_technical( value = if_salv_c_bool_sap=>true ).
 
+          gr_column ?= gr_columns->get_column( 'TEMPO_DEV' ).
+          gr_column->set_technical( value = if_salv_c_bool_sap=>true ).
+
           gr_column ?= gr_columns->get_column( 'TEMPO_PARADO' ).
           gr_column->set_technical( value = if_salv_c_bool_sap=>true ).
 
@@ -575,6 +636,9 @@ FORM exclude_column.
           gr_column ?= gr_columns->get_column( 'TEMPO_ABRT' ).
           gr_column->set_technical( value = if_salv_c_bool_sap=>true ).
 
+          gr_column ?= gr_columns->get_column( 'TEMPO_DEV' ).
+          gr_column->set_technical( value = if_salv_c_bool_sap=>true ).
+
           gr_column ?= gr_columns->get_column( 'TEMPO_PARADO' ).
           gr_column->set_technical( value = if_salv_c_bool_sap=>true ).
 
@@ -587,12 +651,15 @@ FORM exclude_column.
           gr_column ?= gr_columns->get_column( 'TEMPO_TOTAL' ).
           gr_column->set_technical( value = if_salv_c_bool_sap=>true ).
 
-        WHEN '3'. "Parado
+        WHEN '3'. "Em Desenvolvimento
 
           gr_column ?= gr_columns->get_column( 'TEMPO_ABRT' ).
           gr_column->set_technical( value = if_salv_c_bool_sap=>true ).
 
           gr_column ?= gr_columns->get_column( 'TEMPO_ATND' ).
+          gr_column->set_technical( value = if_salv_c_bool_sap=>true ).
+
+          gr_column ?= gr_columns->get_column( 'TEMPO_PARADO' ).
           gr_column->set_technical( value = if_salv_c_bool_sap=>true ).
 
           gr_column ?= gr_columns->get_column( 'TEMPO_TST_FUNC' ).
@@ -604,12 +671,35 @@ FORM exclude_column.
           gr_column ?= gr_columns->get_column( 'TEMPO_TOTAL' ).
           gr_column->set_technical( value = if_salv_c_bool_sap=>true ).
 
-        WHEN '4'. "Teste Funcional
+        WHEN '4'. "Parado
 
           gr_column ?= gr_columns->get_column( 'TEMPO_ABRT' ).
           gr_column->set_technical( value = if_salv_c_bool_sap=>true ).
 
           gr_column ?= gr_columns->get_column( 'TEMPO_ATND' ).
+          gr_column->set_technical( value = if_salv_c_bool_sap=>true ).
+
+          gr_column ?= gr_columns->get_column( 'TEMPO_DEV' ).
+          gr_column->set_technical( value = if_salv_c_bool_sap=>true ).
+
+          gr_column ?= gr_columns->get_column( 'TEMPO_TST_FUNC' ).
+          gr_column->set_technical( value = if_salv_c_bool_sap=>true ).
+
+          gr_column ?= gr_columns->get_column( 'TEMPO_TST_CLNT' ).
+          gr_column->set_technical( value = if_salv_c_bool_sap=>true ).
+
+          gr_column ?= gr_columns->get_column( 'TEMPO_TOTAL' ).
+          gr_column->set_technical( value = if_salv_c_bool_sap=>true ).
+
+        WHEN '5'. "Teste Funcional
+
+          gr_column ?= gr_columns->get_column( 'TEMPO_ABRT' ).
+          gr_column->set_technical( value = if_salv_c_bool_sap=>true ).
+
+          gr_column ?= gr_columns->get_column( 'TEMPO_ATND' ).
+          gr_column->set_technical( value = if_salv_c_bool_sap=>true ).
+
+          gr_column ?= gr_columns->get_column( 'TEMPO_DEV' ).
           gr_column->set_technical( value = if_salv_c_bool_sap=>true ).
 
           gr_column ?= gr_columns->get_column( 'TEMPO_PARADO' ).
@@ -621,12 +711,15 @@ FORM exclude_column.
           gr_column ?= gr_columns->get_column( 'TEMPO_TOTAL' ).
           gr_column->set_technical( value = if_salv_c_bool_sap=>true ).
 
-        WHEN '5'. "Teste Cliente
+        WHEN '6'. "Teste Cliente
 
           gr_column ?= gr_columns->get_column( 'TEMPO_ABRT' ).
           gr_column->set_technical( value = if_salv_c_bool_sap=>true ).
 
           gr_column ?= gr_columns->get_column( 'TEMPO_ATND' ).
+          gr_column->set_technical( value = if_salv_c_bool_sap=>true ).
+
+          gr_column ?= gr_columns->get_column( 'TEMPO_DEV' ).
           gr_column->set_technical( value = if_salv_c_bool_sap=>true ).
 
           gr_column ?= gr_columns->get_column( 'TEMPO_PARADO' ).
@@ -710,6 +803,13 @@ FORM column_centered .
       gr_column->set_short_text('').
       gr_column->set_medium_text('').
       gr_column->set_output_length( 18 ).
+
+      gr_column ?= gr_columns->get_column( 'TEMPO_DEV' ).
+      gr_column->set_alignment( if_salv_c_alignment=>centered ).
+      gr_column->set_long_text( 'Tempo em Desenvolvimento' ).
+      gr_column->set_short_text('').
+      gr_column->set_medium_text('').
+      gr_column->set_output_length( 20 ).
 
       gr_column ?= gr_columns->get_column( 'TEMPO_PARADO' ).
       gr_column->set_alignment( if_salv_c_alignment=>centered ).
