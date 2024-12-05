@@ -840,7 +840,7 @@ MODULE user_command_1001 INPUT.
       CALL SCREEN 1008 STARTING AT 2 2 "15 5
                              ENDING AT 130 25.
 
-    WHEN ok.
+    WHEN ok or 'BACK'.
       IF gs_zbv_chamados-tipo_chamado = 'Execução'.
         IF ( ( gs_zbv_chamados-horas_estimadas - gs_zbv_chamados-horas_utilizadas )  <= 15 ).
           MESSAGE 'Chamado está prestes a estourar as horas estimatidas!' TYPE 'I' DISPLAY LIKE 'W'.
@@ -3961,17 +3961,61 @@ FORM envia_email.
     " Create the main object of the mail.
     CREATE OBJECT lo_mime_helper.
 
-      " Create the mail content.-----"NEW WAY"
-      string = '<!DOCTYPE html PUBLIC “-//IETF//DTD HTML 5.0//EN">'
-      && '<HTML><BODY>'.
+    string = '<!DOCTYPE html><html lang="pt-BR"><head><style> body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; color: #333; }'.
 
-      string2 = '<P>O chamado'.
+    DATA(style1) = '.email-container { max-width: 600px; margin: 20px auto; padding: 20px; background-color: #fff; border: 1px solid #ddd; border-radius: 8px; }'.
 
-      string3 = 'foi atualizado!</P></BODY></HTML>'.
+    DATA(style2) = '.email-header { background-color: #007bff; color: #fff; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; } .email-header h1 { margin: 0; font-size: 24px; } .email-body { padding: 20px; }'.
 
-    CONCATENATE string string2 INTO DATA(string_parcial).
+    DATA(style3) = '.email-body p { font-size: 16px; line-height: 1.5; margin-bottom: 15px; } .status { font-weight: bold; color: #007bff; } .email-footer { padding: 10px; background-color: #f1f1f1; text-align: center; border-radius: 0 0 8px 8px; }'.
 
-    CONCATENATE string_parcial gs_zbv_chamados-id_chamado string3 INTO DATA(string_final) SEPARATED BY space.
+    DATA(style4) = '.email-footer p { font-size: 14px; margin: 0;}</style></head><body><div class="email-container"><div class="email-header"><h1>Atualização do Chamado'.
+
+*    '<h1>Atualização do Chamado'.
+
+    string2 = '</h1></div><div class="email-body"><p>Prezado,'.
+
+    string3 = '</p><p>Estamos entrando em contato para informá-lo(a) sobre o andamento do seu chamado do cliente'.
+
+    DATA(string4) = 'de número'.
+
+    DATA(string5) = '<strong></strong>.</p><p><span class="status">Status Atual: Atualizado</span></p><p><span class="status">Campo:'.
+
+*    <p>A equipe responsável já está trabalhando para resolver o problema e esperamos concluir a solicitação em breve.</p><p>Atenciosamente,<br>'.
+
+*    DATA(string7) = '<p><span>Atualização - Campo:'.
+    DATA(string7) = '</span></p><p><span class="status">Antes:'.
+    DATA(string8) = '</span></p><p><span class="status">Depois:'.
+
+    DATA(string9) = '</span></p><p>Atenciosamente,<br>'.
+
+    DATA(string6) = '</p></p></div><div class="email-footer"><p>Obrigado pela confiança no nosso atendimento.</p></div></div></body></html>'.
+
+    DATA(ass_fab) = 'Fábrica de Software'.
+
+    CONCATENATE string style1
+                style2 style3
+                style4
+                string2 gs_zbv_chamados-solicitante
+                string3 gs_zbv_chamados-cliente
+                string4 gs_zbv_chamados-id_chamado
+                string5 gs_zbv_log_atuali-campo
+                string7 gs_zbv_log_atuali-antes
+                string8 gs_zbv_log_atuali-depois
+                string9 ass_fab
+                string6 INTO DATA(string_final) SEPARATED BY space.
+
+*      " Create the mail content.-----"NEW WAY"
+*      string = '<!DOCTYPE html PUBLIC “-//IETF//DTD HTML 5.0//EN">'
+*      && '<HTML><BODY>'.
+*
+*      string2 = '<P>O chamado'.
+*
+*      string3 = 'foi atualizado!</P></BODY></HTML>'.
+
+*    CONCATENATE string string2 INTO DATA(string_parcial).
+*
+*    CONCATENATE string_parcial gs_zbv_chamados-id_chamado string3 INTO DATA(string_final) SEPARATED BY space.
 
     lt_soli = cl_document_bcs=>string_to_soli( string_final ).
 
@@ -3983,7 +4027,7 @@ FORM envia_email.
     " Set the subject of the mail.
     TRY.
         lo_doc_bcs = cl_document_bcs=>create_from_multirelated(
-                      i_subject          = 'Chamado atualizado'
+                      i_subject          = 'Atualização de chamado'
                       i_importance       = '9'                " 1~High Priority  5~Average priority 9~Low priority
                       i_multirel_service = lo_mime_helper ).
       CATCH cx_document_bcs.
