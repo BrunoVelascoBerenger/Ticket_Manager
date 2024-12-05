@@ -93,7 +93,20 @@ CLASS lcl_main DEFINITION.
       lv_status      TYPE bcs_rqst,
       string         TYPE string,
       string2        TYPE string,
-      string3        TYPE string.
+      string3        TYPE string,
+      string4        TYPE string,
+      string5        TYPE string,
+      string6        TYPE string,
+      string7        TYPE string,
+      string8        TYPE string,
+      string9        TYPE string,
+      string_final   TYPE string,
+      style1         TYPE string,
+      style2         TYPE string,
+      style3         TYPE string,
+      style4         TYPE string,
+      ass_fab        TYPE string VALUE 'Fábrica de Software'.
+
 
 *Variáveis para upload de multi-anexos
     CLASS-DATA:
@@ -703,27 +716,108 @@ CLASS lcl_main IMPLEMENTATION.
     CREATE OBJECT lo_mime_helper.
 
     IF p_alter = abap_false.
-      " Create the mail content.-----"NEW WAY"
-      string = '<!DOCTYPE html PUBLIC “-//IETF//DTD HTML 5.0//EN">'
-      && '<HTML><BODY>'.
 
-      string2 = '<P>O chamado'.
+*      " Create the mail content.-----"NEW WAY"
+*      string = '<!DOCTYPE html PUBLIC “-//IETF//DTD HTML 5.0//EN">'
+*      && '<HTML><BODY>'.
+*
+*      string2 = '<P>O chamado'.
+*
+*      string3 = 'foi criado com sucesso!</P></BODY></HTML>'.
 
-      string3 = 'foi criado com sucesso!</P></BODY></HTML>'.
+      string = '<!DOCTYPE html><html lang="pt-BR"><head><style> body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; color: #333; }'.
+
+      style1 = '.email-container { max-width: 600px; margin: 20px auto; padding: 20px; background-color: #fff; border: 1px solid #ddd; border-radius: 8px; }'.
+
+      style2 = '.email-header { background-color: #007bff; color: #fff; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; } .email-header h1 { margin: 0; font-size: 24px; } .email-body { padding: 20px; }'.
+
+      style3 = '.email-body p { font-size: 16px; line-height: 1.5; margin-bottom: 15px; } .status { font-weight: bold; color: #007bff; } .email-footer { padding: 10px; background-color: #f1f1f1; text-align: center; border-radius: 0 0 8px 8px; }'.
+
+      style4 = '.email-footer p { font-size: 14px; margin: 0;}</style></head><body><div class="email-container"><div class="email-header"><h1>Abertura de chamado'.
+
+      string2 = '</h1></div><div class="email-body"><p>Prezado,'.
+
+      string3 = '.</p><p>Estamos entrando em contato para informá-lo(a) que o seu chamado foi criado com sucesso!</p>'.
+
+      string4 = '<p><span class="status">Dados do Chamado:</span></p><p><span class="status">ID:'.
+
+      string5 = '</span></p><p><span class="status">Cliente:'.
+
+      string6 = '</span></p><p><span class="status">Tipo:'.
+
+      string7 = '</span></p><p><span class="status">Ação:'.
+
+      string8 = '</span></p><p>Atenciosamente,<br>'.
+
+      string9 = '</p></p></div><div class="email-footer"><p>Obrigado pela confiança no nosso atendimento.</p></div></div></body></html>'.
+
+      CONCATENATE string style1
+                  style2 style3
+                  style4
+                  string2 gs_chamados-solicitante
+                  string3
+                  string4 gs_chamados-id_chamado
+                  string5 gs_chamados-cliente
+                  string6 gs_chamados-tipo_chamado
+                  string7 gs_chamados-acao
+                  string8 ass_fab
+                  string9 INTO string_final SEPARATED BY space.
+
     ELSE.
-      " Create the mail content.-----"NEW WAY"
-      string = '<!DOCTYPE html PUBLIC “-//IETF//DTD HTML 5.0//EN">'
-      && '<HTML><BODY>'.
 
-      string2 = '<P>O chamado'.
+*      " Create the mail content.-----"NEW WAY"
+*      string = '<!DOCTYPE html PUBLIC “-//IETF//DTD HTML 5.0//EN">'
+*      && '<HTML><BODY>'.
+*
+*      string2 = '<P>O chamado'.
+*
+*      string3 = 'foi alterado com sucesso!</P></BODY></HTML>'.
 
-      string3 = 'foi alterado com sucesso!</P></BODY></HTML>'.
+      string = '<!DOCTYPE html><html lang="pt-BR"><head><style> body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; color: #333; }'.
+
+      style1 = '.email-container { max-width: 600px; margin: 20px auto; padding: 20px; background-color: #fff; border: 1px solid #ddd; border-radius: 8px; }'.
+
+      style2 = '.email-header { background-color: #007bff; color: #fff; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; } .email-header h1 { margin: 0; font-size: 24px; } .email-body { padding: 20px; }'.
+
+      style3 = '.email-body p { font-size: 16px; line-height: 1.5; margin-bottom: 15px; } .status { font-weight: bold; color: #007bff; } .email-footer { padding: 10px; background-color: #f1f1f1; text-align: center; border-radius: 0 0 8px 8px; }'.
+
+      style4 = '.email-footer p { font-size: 14px; margin: 0;}</style></head><body><div class="email-container"><div class="email-header"><h1>Alteração de chamado'.
+
+      string2 = '</h1></div><div class="email-body"><p>Prezado,'.
+
+      string3 = '.</p><p>Estamos entrando em contato para informá-lo(a) que o seu chamado foi alterado com sucesso!</p>'.
+
+      string4 = '<p><span class="status">Dados do Chamado:</span></p><p><span class="status">ID:'.
+
+      string5 = '</span></p><p><span class="status">Cliente:'.
+
+      string6 = '</span></p><p><span class="status">Tipo:'.
+
+      string7 = '</span></p><p><span class="status">Ação:'.
+
+      string8 = '</span></p><p>Atenciosamente,<br>'.
+
+      string9 = '</p></p></div><div class="email-footer"><p>Obrigado pela confiança no nosso atendimento.</p></div></div></body></html>'.
+
+      CONCATENATE string style1
+                  style2 style3
+                  style4
+                  string2 gs_chamados-solicitante
+                  string3
+                  string4 gs_chamados-id_chamado
+                  string5 gs_chamados-cliente
+                  string6 gs_chamados-tipo_chamado
+                  string7 gs_chamados-acao
+                  string8 ass_fab
+                  string9 INTO string_final SEPARATED BY space.
 
     ENDIF.
 
-    CONCATENATE string p_solici string2 INTO DATA(string_parcial).
 
-    CONCATENATE string_parcial p_id_cha string3 INTO DATA(string_final) SEPARATED BY space.
+
+*    CONCATENATE string p_solici string2 INTO DATA(string_parcial).
+*
+*    CONCATENATE string_parcial p_id_cha string3 INTO DATA(string_final) SEPARATED BY space.
 
     lt_soli = cl_document_bcs=>string_to_soli( string_final ).
 
@@ -756,6 +850,24 @@ CLASS lcl_main IMPLEMENTATION.
         ENDTRY.
 
         lo_bcs->add_recipient( i_recipient = lo_recipient ).
+
+        TRY.
+            lo_recipient = cl_cam_address_bcs=>create_internet_address(
+            i_address_string =  'bruno.bereger@t-systems.com' ).
+          CATCH cx_address_bcs.
+
+        ENDTRY.
+
+        lo_bcs->add_recipient( i_recipient = lo_recipient ).
+
+*        TRY.
+*            lo_recipient = cl_cam_address_bcs=>create_internet_address(
+*            i_address_string =  'berenger.bruno@gmail.com' ).
+*          CATCH cx_address_bcs.
+*
+*        ENDTRY.
+*
+*        lo_bcs->add_recipient( i_recipient = lo_recipient ).
 
         " Change the status.
         lv_status = 'N'.
